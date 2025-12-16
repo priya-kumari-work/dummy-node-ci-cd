@@ -7,36 +7,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # The job will run on the latest Ubuntu image
 
     steps:
       # Step 1: Checkout code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2  # Checkout the code from GitHub repository
 
       # Step 2: Set up Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v1  # Set up Docker Buildx for multi-platform support
 
       # Step 3: Log in to DockerHub
       - name: Log in to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v2  # Log in to DockerHub using GitHub secrets
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username (set as a GitHub secret)
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password or token (set as a GitHub secret)
 
       # Step 4: Build and push Docker image to DockerHub
       - name: Build and Push Docker Image
         run: |
-          docker build -t priyasinghhh/node-app .
-          docker push priyasinghhh/node-app
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/node-app .
+          docker push ${{ secrets.DOCKER_USERNAME }}/node-app  # Push Docker image to Docker Hub
 
-      # Optional: If deploying directly to your DigitalOcean droplet
+      # Step 5: Deploy to DigitalOcean
       - name: Deploy to DigitalOcean
         run: |
+          # Save SSH private key to the correct location and set permissions
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa  # Set the correct permissions for the private key
+
+          # Ensure the Docker image is pulled and deployed
           ssh -o StrictHostKeyChecking=no root@139.59.94.150 << 'EOF'
-            docker pull priyasinghhh/node-app
-            docker run -d -p 80:80 --restart always --name node-app priyasinghhh/node-app
+            docker pull ${{ secrets.DOCKER_USERNAME }}/node-app  # Pull the Docker image from DockerHub
+            docker run -d -p 80:80 --restart always --name node-app ${{ secrets.DOCKER_USERNAME }}/node-app  # Run the app in a container
           EOF
         env:
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Private SSH key for DigitalOcean (from GitHub Secrets)
+
