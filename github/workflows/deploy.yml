@@ -34,15 +34,11 @@ jobs:
       # Step 5: Deploy to DigitalOcean
       - name: Deploy to DigitalOcean
         run: |
-          # Set up SSH environment variable and use it for DigitalOcean SSH deployment
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa  # Save SSH private key to the correct location
           chmod 600 ~/.ssh/id_rsa  # Set correct permissions for the private key
-
-          # Ensure the Docker image is pulled and deployed
-          ssh -o StrictHostKeyChecking=no root@139.59.94.150 << 'EOF'
+          ssh -o StrictHostKeyChecking=no root@139.59.94.150 << 'EOF'  # SSH into DigitalOcean
             docker pull ${{ secrets.DOCKER_USERNAME }}/node-app  # Pull the Docker image from DockerHub
             docker run -d -p 80:80 --restart always --name node-app ${{ secrets.DOCKER_USERNAME }}/node-app  # Run the app in a container
           EOF
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Private SSH key for DigitalOcean (set as a GitHub secret)
-
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Use SSH private key from GitHub Secrets
