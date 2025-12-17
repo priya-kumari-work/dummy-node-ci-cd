@@ -1,50 +1,47 @@
-name: Build and Deploy Node.js App with Docker
+name: Deploy Node.js App to DigitalOcean
 
 on:
   push:
     branches:
-      - main  # Trigger deployment when you push to the main branch
+      - main  # Triggers the workflow when you push to the main branch
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # The job will run on the latest Ubuntu image
+  deploy:
+    runs-on: ubuntu-latest  # The environment to run the job
 
     steps:
-      # Step 1: Checkout code
-      - name: Checkout code
-        uses: actions/checkout@v2  # Checkout the code from GitHub repository
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3  
 
       # Step 2: Set up Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1  # Set up Docker Buildx for multi-platform support
+        uses: docker/setup-buildx-action@v2  
 
-      # Step 3: Log in to DockerHub
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2  # Log in to DockerHub using GitHub secrets
+      # Step 3: Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username (set as a GitHub secret)
-          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password or token (set as a GitHub secret)
+          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username from GitHub secrets
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password from GitHub secrets
 
-      # Step 4: Build and push Docker image to DockerHub
-      - name: Build and Push Docker Image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/node-app .
-          docker push ${{ secrets.DOCKER_USERNAME }}/node-app  # Push Docker image to Docker Hub
+      # Step 4: Build and push Docker image to Docker Hub
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Replace with your Docker Hub username and image name
 
-      # Step 5: Deploy to DigitalOcean
+      # Step 5: Deploy to DigitalOcean Droplet
       - name: Deploy to DigitalOcean
-        run: |
-          # Create the .ssh directory before using it
-          mkdir -p ~/.ssh
-          
-          # Save SSH private key to the correct location and set permissions
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa  # Set the correct permissions for the private key
-
-          # Ensure the Docker image is pulled and deployed
-          ssh -o StrictHostKeyChecking=no root@139.59.94.150 << 'EOF'
-            docker pull ${{ secrets.DOCKER_USERNAME }}/node-app  # Pull the Docker image from DockerHub
-            docker run -d -p 80:80 --restart always --name node-app ${{ secrets.DOCKER_USERNAME }}/node-app  # Run the app in a container
-          EOF
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Private SSH key for DigitalOcean (from GitHub Secrets)
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.DIGITALOCEAN_IP }}  # Your Droplet's IP
+          username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet
+          key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}  # SSH private key stored in GitHub secrets
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Pull the image from Docker Hub
+            docker stop nodeapp || true  # Stop any running container
+            docker rm nodeapp || true  # Remove any stopped container
+            docker run -d -p 80:3000 --name nodeapp ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Run the new container
