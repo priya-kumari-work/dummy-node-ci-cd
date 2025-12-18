@@ -22,8 +22,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username from GitHub secrets
-          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password from GitHub secrets
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       # Step 4: Build and push Docker image to Docker Hub
       - name: Build and push Docker image
@@ -31,15 +31,16 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Replace with your Docker Hub username and image name
+          tags: ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1
 
       # Step 5: Deploy to DigitalOcean Droplet
       - name: Deploy to DigitalOcean
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.DIGITALOCEAN_IP }}  # Your Droplet's IP
-          username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet
+          username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet (e.g., root)
           key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}  # SSH private key stored in GitHub secrets
+          port: 22  # Ensure the correct port is specified (default is 22)
           script: |
             # Pull the latest image from Docker Hub
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  
@@ -48,7 +49,3 @@ jobs:
             docker rm nodeapp || echo "No container to remove"
             # Run the new container with the correct port mapping
             docker run -d -p 80:3000 --name nodeapp ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Run the new container
-
-      # Step 6: List running Docker containers (optional)
-      - name: List running Docker containers
-        run: docker ps
