@@ -3,7 +3,7 @@ name: Deploy Node.js App to DigitalOcean
 on:
   push:
     branches:
-      - main  # Triggers the workflow when you push to the main branch
+      - main  # Trigger the workflow when changes are pushed to the main branch
 
 jobs:
   deploy:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3  
 
-      # Step 2: Set up Docker Buildx
+      # Step 2: Set up Docker Buildx (needed for multi-platform builds)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2  
 
@@ -22,8 +22,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username from GitHub secrets
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password from GitHub secrets
 
       # Step 4: Build and push Docker image to Docker Hub
       - name: Build and push Docker image
@@ -31,21 +31,19 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1
+          tags: ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Tag image with Docker Hub username and repository
 
       # Step 5: Deploy to DigitalOcean Droplet
       - name: Deploy to DigitalOcean
-        uses: appleboy/ssh-action@v0.1.5
+        uses: appleboy/ssh-action@v0.1.6  # Updated to latest version
         with:
           host: ${{ secrets.DIGITALOCEAN_IP }}  # Your Droplet's IP
-          username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet (e.g., root)
+          username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet (usually 'root')
           key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}  # SSH private key stored in GitHub secrets
           port: 22  # Ensure the correct port is specified (default is 22)
           script: |
-            # Pull the latest image from Docker Hub
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  
-            # Stop and remove the running container if it exists
-            docker stop nodeapp || echo "No running container to stop"
-            docker rm nodeapp || echo "No container to remove"
-            # Run the new container with the correct port mapping
-            docker run -d -p 80:3000 --name nodeapp ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Run the new container
+            ssh -v -i ${{ secrets.DIGITALOCEAN_SSH_KEY }} root@${{ secrets.DIGITALOCEAN_IP }}  # Verbose SSH for debugging
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Pull the image from Docker Hub
+            docker stop nodeapp || echo "No running container to stop"  # Stop any running container with the name 'nodeapp'
+            docker rm nodeapp || echo "No container to remove"  # Remove the stopped container
+            docker run -d -p 80:3000 --name nodeapp ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Run the new container (port 80 on droplet to 3000 in container)
