@@ -41,7 +41,10 @@ jobs:
           username: ${{ secrets.DIGITALOCEAN_USER }}  # Your SSH username for the Droplet
           key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}  # SSH private key stored in GitHub secrets
           script: |
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Pull the image from Docker Hub
-            docker stop nodeapp || true  # Stop any running container
-            docker rm nodeapp || true  # Remove any stopped container
+            # Pull the latest image from Docker Hub
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  
+            # Stop and remove the running container if it exists
+            docker stop nodeapp || true  
+            docker rm nodeapp || true  
+            # Run the new container with the correct port mapping
             docker run -d -p 80:3000 --name nodeapp ${{ secrets.DOCKER_USERNAME }}/nodeapp:v1  # Run the new container
